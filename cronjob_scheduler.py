@@ -21,11 +21,12 @@ logging.basicConfig(
 
 class CronJobScheduler:
     def __init__(self):
-        self.rules_file = "saved_rules.json"
+        self.rules_file = "data/saved_rules.json"
         self.results_dir = "daily_results"
         self.brasilia_tz = pytz.timezone('America/Sao_Paulo')
         
-        # Ensure results directory exists
+        # Ensure directories exist
+        os.makedirs("data", exist_ok=True)
         os.makedirs(self.results_dir, exist_ok=True)
     
     def load_saved_rules(self) -> List[SearchRule]:
