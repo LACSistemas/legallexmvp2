@@ -55,6 +55,53 @@ class CronJobScheduler:
         
         return []
     
+    def load_all_rules(self) -> List[SearchRule]:
+        """Load all rules (default hardcoded + custom saved rules)"""
+        from djesearchapp import SearchRule
+        
+        # Default hardcoded rules that always exist
+        default_rules = [
+            SearchRule(
+                name="OAB Principal",
+                enabled=True,
+                parameters={'oab_number': '8773', 'oab_uf': 'ES'}
+            ),
+            SearchRule(
+                name="Darwin",
+                enabled=True,
+                parameters={'party_name': 'Darwin', 'court_acronym': 'TJES'}
+            ),
+            SearchRule(
+                name="Sinales",
+                enabled=True,
+                parameters={'party_name': 'Sinales'}
+            ),
+            SearchRule(
+                name="Multivix",
+                enabled=True,
+                parameters={'party_name': 'Multivix'}
+            ),
+            SearchRule(
+                name="Daycoval",
+                enabled=True,
+                parameters={'party_name': 'Daycoval'}
+            ),
+            SearchRule(
+                name="Claretiano",
+                enabled=True,
+                parameters={'party_name': 'Claretiano'}
+            )
+        ]
+        
+        # Load additional custom rules from file
+        custom_rules = self.load_saved_rules()
+        
+        # Combine default + custom rules
+        all_rules = default_rules + custom_rules
+        logging.info(f"Loaded {len(default_rules)} default rules + {len(custom_rules)} custom rules")
+        
+        return all_rules
+    
     def save_rules(self, rules: List[SearchRule]):
         """Save rules to file"""
         try:
@@ -81,8 +128,8 @@ class CronJobScheduler:
         brasilia_now = datetime.now(self.brasilia_tz)
         logging.info(f"Starting daily search at {brasilia_now.strftime('%Y-%m-%d %H:%M:%S')} (Brasília)")
         
-        # Load rules
-        rules = self.load_saved_rules()
+        # Load all rules (default + custom)
+        rules = self.load_all_rules()
         if not rules:
             logging.warning("No rules configured for daily search")
             return

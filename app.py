@@ -153,18 +153,56 @@ def show_rules_config():
     # Import the rule configuration from the original system
     from djesearchapp import create_rule_form, SearchRule
     
-    # Initialize session state for rules
+    # Initialize session state for rules with hardcoded defaults
     if 'auto_rules' not in st.session_state:
-        # Load saved rules from file
+        # Create default hardcoded rules
+        from djesearchapp import SearchRule
+        
+        default_rules = [
+            SearchRule(
+                name="OAB Principal",
+                enabled=True,
+                parameters={'oab_number': '8773', 'oab_uf': 'ES'}
+            ),
+            SearchRule(
+                name="Darwin",
+                enabled=True,
+                parameters={'party_name': 'Darwin', 'court_acronym': 'TJES'}
+            ),
+            SearchRule(
+                name="Sinales",
+                enabled=True,
+                parameters={'party_name': 'Sinales'}
+            ),
+            SearchRule(
+                name="Multivix",
+                enabled=True,
+                parameters={'party_name': 'Multivix'}
+            ),
+            SearchRule(
+                name="Daycoval",
+                enabled=True,
+                parameters={'party_name': 'Daycoval'}
+            ),
+            SearchRule(
+                name="Claretiano",
+                enabled=True,
+                parameters={'party_name': 'Claretiano'}
+            )
+        ]
+        
+        # Load additional saved rules from file and append them
         try:
             from cronjob_scheduler import CronJobScheduler
             scheduler = CronJobScheduler()
-            saved_rules = scheduler.load_saved_rules()
-            st.session_state.auto_rules = saved_rules
-            logging.info(f"Loaded {len(saved_rules)} saved rules from file")
+            saved_custom_rules = scheduler.load_saved_rules()
+            # Combine default rules with any custom saved rules
+            all_rules = default_rules + saved_custom_rules
+            st.session_state.auto_rules = all_rules
+            logging.info(f"Loaded {len(default_rules)} default rules + {len(saved_custom_rules)} custom rules")
         except Exception as e:
-            logging.warning(f"Could not load saved rules: {str(e)}")
-            st.session_state.auto_rules = []
+            logging.warning(f"Could not load custom rules, using defaults only: {str(e)}")
+            st.session_state.auto_rules = default_rules
     
     # Rule management buttons
     col1, col2, col3 = st.columns(3)
