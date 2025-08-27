@@ -7,11 +7,9 @@ services:
     ports:
       - "8501:8501"
     volumes:
-      - ./analyses:/app/analyses
-      - ./daily_results:/app/daily_results
-      - ./saved_rules.json:/app/saved_rules.json
-      - ./cronjob.log:/app/cronjob.log
-      - ./app.log:/app/app.log
+      - legallex_analyses:/app/analyses
+      - legallex_daily_results:/app/daily_results
+      - legallex_data:/app/data
     environment:
       - TZ=America/Sao_Paulo
       - PYTHONUNBUFFERED=1
@@ -27,3 +25,8 @@ services:
       options:
         max-size: "10m"
         max-file: "3"
+
+volumes:
+  legallex_analyses:
+  legallex_daily_results:
+  legallex_data:
