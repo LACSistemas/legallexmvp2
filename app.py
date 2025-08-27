@@ -194,14 +194,6 @@ def show_rules_config():
                 }
             ),
             SearchRule(
-                name="Daycoval",
-                enabled=True,
-                parameters={
-                    'nomeParte': 'Daycoval',
-                    'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
-                }
-            ),
-            SearchRule(
                 name="Claretiano",
                 enabled=True,
                 parameters={
