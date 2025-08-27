@@ -155,7 +155,16 @@ def show_rules_config():
     
     # Initialize session state for rules
     if 'auto_rules' not in st.session_state:
-        st.session_state.auto_rules = []
+        # Load saved rules from file
+        try:
+            from cronjob_scheduler import CronJobScheduler
+            scheduler = CronJobScheduler()
+            saved_rules = scheduler.load_saved_rules()
+            st.session_state.auto_rules = saved_rules
+            logging.info(f"Loaded {len(saved_rules)} saved rules from file")
+        except Exception as e:
+            logging.warning(f"Could not load saved rules: {str(e)}")
+            st.session_state.auto_rules = []
     
     # Rule management buttons
     col1, col2, col3 = st.columns(3)
@@ -171,9 +180,27 @@ def show_rules_config():
     
     with col3:
         if st.button("💾 Salvar Regras"):
-            # Here you would save rules to a database or file
-            # For now, we'll just show a success message
-            st.success("✅ Regras salvas! Serão executadas automaticamente às 6:00 da manhã.")
+            # Save rules using CronJobScheduler
+            try:
+                from cronjob_scheduler import CronJobScheduler
+                scheduler = CronJobScheduler()
+                
+                # Get configured rules from session state
+                rules_to_save = []
+                for i in range(len(st.session_state.auto_rules)):
+                    rule = st.session_state.auto_rules[i]
+                    if rule:  # Only save non-None rules
+                        rules_to_save.append(rule)
+                
+                # Save rules to file
+                scheduler.save_rules(rules_to_save)
+                
+                logging.info(f"Successfully saved {len(rules_to_save)} rules to file")
+                st.success(f"✅ {len(rules_to_save)} regra(s) salva(s)! Serão executadas automaticamente às 6:00 da manhã.")
+                
+            except Exception as e:
+                logging.error(f"Error saving rules: {str(e)}")
+                st.error(f"❌ Erro ao salvar regras: {str(e)}")
     
     # Rule configuration forms
     configured_rules = []
