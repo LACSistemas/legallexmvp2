@@ -22,7 +22,8 @@ RUN groupadd -r appuser && useradd -r -g appuser -m appuser
 # Create necessary directories and set permissions
 RUN mkdir -p analyses daily_results /home/appuser/.streamlit \
     && chown -R appuser:appuser /app /home/appuser \
-    && chmod -R 755 /app /home/appuser
+    && chmod -R 775 /app /home/appuser \
+    && chmod -R 775 /app/analyses /app/daily_results
 
 # Make startup script executable
 RUN chmod +x start_production.sh
