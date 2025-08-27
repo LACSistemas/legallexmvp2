@@ -60,36 +60,58 @@ class CronJobScheduler:
         from djesearchapp import SearchRule
         
         # Default hardcoded rules that always exist
+        from datetime import datetime
+        
         default_rules = [
             SearchRule(
                 name="OAB Principal",
                 enabled=True,
-                parameters={'oab_number': '8773', 'oab_uf': 'ES'}
+                parameters={
+                    'numeroOab': '8773', 
+                    'ufOab': 'ES',
+                    'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
+                }
             ),
             SearchRule(
                 name="Darwin",
                 enabled=True,
-                parameters={'party_name': 'Darwin', 'court_acronym': 'TJES'}
+                parameters={
+                    'nomeParte': 'Darwin', 
+                    'siglaOrgaoJulgador': 'TJES',
+                    'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
+                }
             ),
             SearchRule(
                 name="Sinales",
                 enabled=True,
-                parameters={'party_name': 'Sinales'}
+                parameters={
+                    'nomeParte': 'Sinales',
+                    'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
+                }
             ),
             SearchRule(
                 name="Multivix",
                 enabled=True,
-                parameters={'party_name': 'Multivix'}
+                parameters={
+                    'nomeParte': 'Multivix',
+                    'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
+                }
             ),
             SearchRule(
                 name="Daycoval",
                 enabled=True,
-                parameters={'party_name': 'Daycoval'}
+                parameters={
+                    'nomeParte': 'Daycoval',
+                    'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
+                }
             ),
             SearchRule(
                 name="Claretiano",
                 enabled=True,
-                parameters={'party_name': 'Claretiano'}
+                parameters={
+                    'nomeParte': 'Claretiano',
+                    'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
+                }
             )
         ]
         
