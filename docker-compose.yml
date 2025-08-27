@@ -1,0 +1,29 @@
+version: '3.8'
+
+services:
+  legallex-mvp2:
+    build: .
+    container_name: legallex-mvp2
+    ports:
+      - "8501:8501"
+    volumes:
+      - ./analyses:/app/analyses
+      - ./daily_results:/app/daily_results
+      - ./saved_rules.json:/app/saved_rules.json
+      - ./cronjob.log:/app/cronjob.log
+      - ./app.log:/app/app.log
+    environment:
+      - TZ=America/Sao_Paulo
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8501/_stcore/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"

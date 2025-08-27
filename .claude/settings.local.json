@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Read(//Users/lucusaurich/projects/legallexmvp2/**)"
+    ],
+    "deny": [],
+    "ask": []
+  }
+}
