@@ -16,13 +16,13 @@ RUN pip install --no-cache-dir -r requirements.txt
 # Copy application files
 COPY . .
 
-# Create non-root user
-RUN groupadd -r appuser && useradd -r -g appuser appuser
+# Create non-root user with home directory
+RUN groupadd -r appuser && useradd -r -g appuser -m appuser
 
 # Create necessary directories and set permissions
-RUN mkdir -p analyses daily_results \
-    && chown -R appuser:appuser /app \
-    && chmod -R 755 /app
+RUN mkdir -p analyses daily_results /home/appuser/.streamlit \
+    && chown -R appuser:appuser /app /home/appuser \
+    && chmod -R 755 /app /home/appuser
 
 # Make startup script executable
 RUN chmod +x start_production.sh
