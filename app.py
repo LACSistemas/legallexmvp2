@@ -433,6 +433,22 @@ def show_daily_results():
     else:
         st.warning("⚠️ Nenhum resultado encontrado para esta data.")
     
+    # Debug database info
+    try:
+        from database import DatabaseManager
+        db = DatabaseManager()
+        search_history = db.get_search_history(limit=10)
+        if search_history:
+            st.info(f"📊 Database conectada! Últimas {len(search_history)} buscas encontradas.")
+            with st.expander("Ver histórico de buscas"):
+                for search in search_history:
+                    st.write(f"• {search['name']} - {search['date']} ({search['publications_found']} publicações)")
+        else:
+            st.warning("⚠️ Database conectada mas nenhuma busca encontrada.")
+    except Exception as e:
+        st.error(f"❌ Erro na database: {str(e)}")
+        logging.error(f"Database debug error: {str(e)}")
+
     # Manual execution button (for testing)
     if st.button("🔍 Executar Busca Manual (Teste)", type="secondary"):
         if 'auto_rules' in st.session_state and st.session_state.auto_rules:
@@ -482,6 +498,10 @@ def show_daily_results():
                     
                     logging.info(f"Manual search results saved to database with ID {search_execution_id}")
                     status_text.success(f"✅ Busca concluída e salva como '{filename}'! {len(publications)} publicações encontradas.")
+                    
+                    # Debug: verify it was saved
+                    verify_pubs = db.get_publications_by_date(date_str)
+                    st.info(f"🔍 Debug: Verificação - {len(verify_pubs)} publicações salvas para {date_str}")
                     
                 except Exception as e:
                     logging.error(f"Error saving manual search results to database: {str(e)}")

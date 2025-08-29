@@ -14,7 +14,14 @@ class DatabaseManager:
     def __init__(self, db_path: str = "data/legallexmvp2.db"):
         self.db_path = db_path
         # Ensure data directory exists
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        try:
+            os.makedirs(os.path.dirname(db_path), exist_ok=True)
+            logging.info(f"Database path: {os.path.abspath(db_path)}")
+        except Exception as e:
+            logging.error(f"Error creating database directory: {str(e)}")
+            # Fallback to current directory
+            self.db_path = "legallexmvp2.db"
+            logging.info(f"Using fallback database path: {os.path.abspath(self.db_path)}")
         self.init_database()
     
     def get_connection(self):
