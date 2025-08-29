@@ -477,6 +477,8 @@ def show_daily_results():
                 try:
                     from database import DatabaseManager
                     
+                    st.info(f"🔍 Debug: Tentando salvar {len(publications)} publicações...")
+                    
                     # Create database manager instance
                     db = DatabaseManager()
                     
@@ -485,6 +487,8 @@ def show_daily_results():
                     brasilia_now = datetime.now(brasilia_tz)
                     date_str = brasilia_now.strftime('%d/%m/%Y')
                     filename = f"Busca do dia {date_str}"
+                    
+                    st.info(f"🔍 Debug: Salvando como '{filename}' para data '{date_str}'")
                     
                     # Save to database
                     search_execution_id = db.save_search_execution(
@@ -496,6 +500,7 @@ def show_daily_results():
                         stats=stats
                     )
                     
+                    st.success(f"🔍 Debug: Salvo com ID {search_execution_id}")
                     logging.info(f"Manual search results saved to database with ID {search_execution_id}")
                     status_text.success(f"✅ Busca concluída e salva como '{filename}'! {len(publications)} publicações encontradas.")
                     
@@ -503,9 +508,15 @@ def show_daily_results():
                     verify_pubs = db.get_publications_by_date(date_str)
                     st.info(f"🔍 Debug: Verificação - {len(verify_pubs)} publicações salvas para {date_str}")
                     
+                    # Show first publication data for debugging
+                    if publications:
+                        st.info(f"🔍 Debug: Primeira publicação: {publications[0].get('hash', 'no-hash')}, {publications[0].get('texto', '')[:50]}...")
+                    
                 except Exception as e:
                     logging.error(f"Error saving manual search results to database: {str(e)}")
-                    # Don't show error to user, just log it
+                    st.error(f"❌ Erro salvando na database: {str(e)}")
+                    import traceback
+                    st.error(f"Traceback: {traceback.format_exc()}")
                 
                 st.rerun()
                 

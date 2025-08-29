@@ -75,8 +75,7 @@ class DatabaseManager:
                     source_rule VARCHAR(100),
                     raw_data TEXT,
                     created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (search_execution_id) REFERENCES search_executions(id) ON DELETE CASCADE,
-                    UNIQUE(hash, search_execution_id)
+                    FOREIGN KEY (search_execution_id) REFERENCES search_executions(id) ON DELETE CASCADE
                 )
             """)
             
@@ -142,6 +141,8 @@ class DatabaseManager:
         """Save a complete search execution with all publications"""
         conn = self.get_connection()
         try:
+            logging.info(f"Saving search execution: name={name}, date={date}, pubs={len(publications)}")
+            
             # Insert or update search execution
             cursor = conn.execute("""
                 INSERT OR REPLACE INTO search_executions 
@@ -150,15 +151,22 @@ class DatabaseManager:
             """, (name, date, timestamp.isoformat(), rules_executed, len(publications), json.dumps(stats)))
             
             search_execution_id = cursor.lastrowid
+            logging.info(f"Search execution saved with ID: {search_execution_id}")
             
             # Delete existing publications for this search execution
             conn.execute("DELETE FROM publications WHERE search_execution_id = ?", (search_execution_id,))
             
             # Insert all publications
-            for pub in publications:
-                pub_id = self._insert_publication(conn, search_execution_id, pub)
-                self._insert_destinatarios(conn, pub_id, pub.get('destinatarios', []))
-                self._insert_advogados(conn, pub_id, pub.get('destinatarioadvogados', []))
+            logging.info(f"Inserting {len(publications)} publications")
+            for i, pub in enumerate(publications):
+                try:
+                    pub_id = self._insert_publication(conn, search_execution_id, pub)
+                    logging.info(f"Inserted publication {i+1}/{len(publications)} with ID {pub_id}")
+                    self._insert_destinatarios(conn, pub_id, pub.get('destinatarios', []))
+                    self._insert_advogados(conn, pub_id, pub.get('destinatarioadvogados', []))
+                except Exception as e:
+                    logging.error(f"Error inserting publication {i+1}: {str(e)}")
+                    raise
             
             conn.commit()
             logging.info(f"Saved search execution '{name}' with {len(publications)} publications")
