@@ -57,7 +57,7 @@ class CronJobScheduler:
     
     def load_all_rules(self) -> List[SearchRule]:
         """Load all rules (default hardcoded + custom saved rules)"""
-        from djesearchapp import SearchRule
+        from djesearchapp import SearchRule, ExclusionRule
         
         # Default hardcoded rules that always exist
         from datetime import datetime
@@ -85,9 +85,17 @@ class CronJobScheduler:
                 name="Sinales",
                 enabled=True,
                 parameters={
-                    'nomeParte': 'Sinales',
+                    'nomeParte': 'SINALES SINALIZAÇÃO ESPÍRITO SANTO LTDA',
                     'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
-                }
+                },
+                exclusions=[
+                    ExclusionRule(
+                        name="Excluir OAB 014072 ES",
+                        field="numeroOab",
+                        value="014072",
+                        enabled=True
+                    )
+                ]
             ),
             SearchRule(
                 name="Multivix",
@@ -98,7 +106,7 @@ class CronJobScheduler:
                 }
             ),
             SearchRule(
-                name="Claretiano",
+                name="CENTRO UNIVERSITÁRIO CLARETIANO",
                 enabled=True,
                 parameters={
                     'nomeParte': 'Claretiano',

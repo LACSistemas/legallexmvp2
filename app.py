@@ -151,7 +151,7 @@ def show_rules_config():
     st.markdown("As regras configuradas abaixo serão executadas automaticamente todos os dias às 6:00 da manhã.")
     
     # Import the rule configuration from the original system
-    from djesearchapp import create_rule_form, SearchRule
+    from djesearchapp import create_rule_form, SearchRule, ExclusionRule
     
     # Initialize session state for rules with hardcoded defaults
     if 'auto_rules' not in st.session_state:
@@ -181,9 +181,17 @@ def show_rules_config():
                 name="Sinales",
                 enabled=True,
                 parameters={
-                    'nomeParte': 'Sinales',
+                    'nomeParte': 'SINALES SINALIZAÇÃO ESPÍRITO SANTO LTDA',
                     'dataDisponibilizacaoInicio': datetime.now().strftime('%Y-%m-%d')
-                }
+                },
+                exclusions=[
+                    ExclusionRule(
+                        name="Excluir OAB 014072 ES",
+                        field="numeroOab",
+                        value="014072",
+                        enabled=True
+                    )
+                ]
             ),
             SearchRule(
                 name="Multivix",
@@ -194,7 +202,7 @@ def show_rules_config():
                 }
             ),
             SearchRule(
-                name="Claretiano",
+                name="CENTRO UNIVERSITÁRIO CLARETIANO",
                 enabled=True,
                 parameters={
                     'nomeParte': 'Claretiano',
@@ -324,6 +332,61 @@ def show_daily_results():
             
             for i, pub in enumerate(current_items):
                 display_publication_card(pub, start_idx + i)
+            
+            # Excel download button
+            st.markdown("---")
+            st.markdown("## 📊 Exportar Resultados")
+            if st.button("📋 Baixar em Excel"):
+                try:
+                    import pandas as pd
+                    from io import BytesIO
+                    
+                    # Prepare data for Excel
+                    excel_data = []
+                    for pub in publications:
+                        # Extract key information for Excel
+                        row = {
+                            'Número do Processo': pub.get('numeroProcesso', ''),
+                            'Data de Disponibilização': pub.get('dataDisponibilizacao', ''),
+                            'Órgão Julgador': pub.get('siglaOrgaoJulgador', ''),
+                            'Nome das Partes': ', '.join([parte.get('nome', '') for parte in pub.get('nomePartes', [])]),
+                            'Advogados': ', '.join([
+                                f"{adv.get('advogado', {}).get('nome', '')} (OAB: {adv.get('advogado', {}).get('numero_oab', '')})"
+                                for adv in pub.get('destinatarioadvogados', [])
+                            ]),
+                            'Tipo de Publicação': pub.get('tipoPublicacao', ''),
+                            'Conteúdo': pub.get('conteudo', ''),
+                            'Fonte da Regra': pub.get('_source_rule', '')
+                        }
+                        excel_data.append(row)
+                    
+                    # Create DataFrame
+                    df = pd.DataFrame(excel_data)
+                    
+                    # Create Excel file in memory
+                    output = BytesIO()
+                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                        df.to_excel(writer, index=False, sheet_name='Publicações')
+                    
+                    # Get the Excel data
+                    excel_bytes = output.getvalue()
+                    
+                    # Generate filename with date
+                    brasilia_tz = pytz.timezone('America/Sao_Paulo')
+                    date_str = selected_date.strftime('%d-%m-%Y')
+                    filename = f"Busca_do_dia_{date_str}.xlsx"
+                    
+                    st.download_button(
+                        label="💾 Download Excel",
+                        data=excel_bytes,
+                        file_name=filename,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                        key="download_excel"
+                    )
+                    
+                except Exception as e:
+                    logging.error(f"Error creating Excel file: {str(e)}")
+                    st.error(f"❌ Erro ao criar arquivo Excel: {str(e)}")
         else:
             st.warning("⚠️ Nenhum resultado encontrado para esta data.")
     else:
@@ -349,9 +412,45 @@ def show_daily_results():
                 
                 logging.info(f"Manual search completed: {len(publications)} publications found, stats: {stats}")
                 
-                # Store results
+                # Store results in session state
                 st.session_state.last_auto_search_results = publications
                 st.session_state.last_search_date = datetime.now()
+                
+                # Save results to file with date format
+                try:
+                    import json
+                    import os
+                    
+                    # Ensure directory exists
+                    results_dir = "daily_results"
+                    os.makedirs(results_dir, exist_ok=True)
+                    
+                    # Create filename with today's date
+                    brasilia_tz = pytz.timezone('America/Sao_Paulo')
+                    brasilia_now = datetime.now(brasilia_tz)
+                    date_str = brasilia_now.strftime('%d/%m/%Y')
+                    filename = f"Busca do dia {date_str}"
+                    results_file = os.path.join(results_dir, f"{filename}.json")
+                    
+                    results_data = {
+                        'name': filename,
+                        'date': date_str,
+                        'timestamp': brasilia_now.isoformat(),
+                        'rules_executed': len(st.session_state.auto_rules),
+                        'publications_found': len(publications),
+                        'publications': publications,
+                        'stats': stats
+                    }
+                    
+                    with open(results_file, 'w', encoding='utf-8') as f:
+                        json.dump(results_data, f, ensure_ascii=False, indent=2)
+                    
+                    logging.info(f"Manual search results saved to {results_file}")
+                    status_text.success(f"✅ Busca concluída e salva como '{filename}'! {len(publications)} publicações encontradas.")
+                    
+                except Exception as e:
+                    logging.error(f"Error saving manual search results: {str(e)}")
+                    # Don't show error to user, just log it
                 
                 st.rerun()
                 

@@ -652,14 +652,14 @@ def main():
                     name="Sinales",
                     enabled=True,
                     parameters={
-                        'nomeParte': 'Sinales',
+                        'nomeParte': 'SINALES SINALIZAÇÃO ESPÍRITO SANTO LTDA',
                         'dataDisponibilizacaoInicio': date.today().strftime('%Y-%m-%d')
                     },
                     exclusions=[
                         ExclusionRule(
-                            name="Excluir Itiel",
+                            name="Excluir OAB 014072 ES",
                             field="numeroOab",
-                            value="14072",
+                            value="014072",
                             enabled=True
                         )
                     ]

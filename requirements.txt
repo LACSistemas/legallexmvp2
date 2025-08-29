@@ -3,3 +3,4 @@ requests
 pandas
 pytz
 schedule
+openpyxl
