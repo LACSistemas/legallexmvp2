@@ -119,6 +119,20 @@ class DatabaseManager:
                 )
             """)
             
+            # Análises Inteligentes table
+            conn.execute("""
+                CREATE TABLE IF NOT EXISTS analyses (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    publication_id INTEGER,
+                    filename VARCHAR(200),
+                    original_filename VARCHAR(200),
+                    html_content TEXT,
+                    upload_date DATETIME DEFAULT CURRENT_TIMESTAMP,
+                    uploaded_by VARCHAR(50),
+                    FOREIGN KEY (publication_id) REFERENCES publications(id) ON DELETE CASCADE
+                )
+            """)
+            
             # Create indexes for better performance
             conn.execute("CREATE INDEX IF NOT EXISTS idx_search_executions_date ON search_executions(date)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_publications_hash ON publications(hash)")
@@ -126,6 +140,7 @@ class DatabaseManager:
             conn.execute("CREATE INDEX IF NOT EXISTS idx_publications_date ON publications(datadisponibilizacao)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_destinatarios_pub ON destinatarios(publication_id)")
             conn.execute("CREATE INDEX IF NOT EXISTS idx_advogados_oab ON advogados(numero_oab, uf_oab)")
+            conn.execute("CREATE INDEX IF NOT EXISTS idx_analyses_pub ON analyses(publication_id)")
             
             conn.commit()
             logging.info("Database initialized successfully")
@@ -332,6 +347,7 @@ class DatabaseManager:
                     'datadisponibilizacao': pub['datadisponibilizacao'],
                     'meiocompleto': pub['meio_completo'],
                     '_source_rule': pub['source_rule'],
+                    '_db_id': pub['id'],  # Include database ID for analysis linking
                     'destinatarios': pub['destinatarios'],
                     'destinatarioadvogados': pub['destinatarioadvogados']
                 }
@@ -373,6 +389,96 @@ class DatabaseManager:
         finally:
             conn.close()
     
+    def get_publications_for_date_dropdown(self, date: str) -> List[Dict]:
+        """Get publications for dropdown selection (processo + resumo)"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                SELECT p.id, p.numeroprocessocommascara, p.nome_orgao, p.tipo_comunicacao, 
+                       p.texto, se.date
+                FROM publications p
+                JOIN search_executions se ON p.search_execution_id = se.id
+                WHERE se.date = ?
+                ORDER BY p.numeroprocessocommascara
+            """, (date,))
+            
+            publications = []
+            columns = [desc[0] for desc in cursor.description]
+            
+            for row in cursor.fetchall():
+                pub = dict(zip(columns, row))
+                # Create display text for dropdown
+                texto_resumo = pub['texto'][:100] + '...' if pub['texto'] and len(pub['texto']) > 100 else pub['texto'] or ''
+                pub['display_text'] = f"{pub['numeroprocessocommascara']} - {pub['nome_orgao']} - {texto_resumo}"
+                publications.append(pub)
+            
+            return publications
+            
+        except Exception as e:
+            logging.error(f"Error getting publications for dropdown: {str(e)}")
+            return []
+        finally:
+            conn.close()
+    
+    def save_analysis(self, publication_id: int, filename: str, original_filename: str, 
+                     html_content: str, uploaded_by: str) -> int:
+        """Save an analysis linked to a publication"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                INSERT INTO analyses (publication_id, filename, original_filename, html_content, uploaded_by)
+                VALUES (?, ?, ?, ?, ?)
+            """, (publication_id, filename, original_filename, html_content, uploaded_by))
+            
+            analysis_id = cursor.lastrowid
+            conn.commit()
+            
+            logging.info(f"Analysis saved with ID {analysis_id} for publication {publication_id}")
+            return analysis_id
+            
+        except Exception as e:
+            logging.error(f"Error saving analysis: {str(e)}")
+            conn.rollback()
+            raise
+        finally:
+            conn.close()
+    
+    def get_analysis_for_publication(self, publication_id: int) -> Optional[Dict]:
+        """Get analysis for a specific publication"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                SELECT * FROM analyses WHERE publication_id = ? ORDER BY upload_date DESC LIMIT 1
+            """, (publication_id,))
+            
+            row = cursor.fetchone()
+            if row:
+                columns = [desc[0] for desc in cursor.description]
+                return dict(zip(columns, row))
+            return None
+            
+        except Exception as e:
+            logging.error(f"Error getting analysis for publication: {str(e)}")
+            return None
+        finally:
+            conn.close()
+    
+    def delete_analysis(self, analysis_id: int) -> bool:
+        """Delete an analysis"""
+        conn = self.get_connection()
+        try:
+            conn.execute("DELETE FROM analyses WHERE id = ?", (analysis_id,))
+            conn.commit()
+            logging.info(f"Analysis {analysis_id} deleted")
+            return True
+            
+        except Exception as e:
+            logging.error(f"Error deleting analysis: {str(e)}")
+            conn.rollback()
+            return False
+        finally:
+            conn.close()
+
     def get_statistics(self) -> Dict:
         """Get database statistics"""
         conn = self.get_connection()
@@ -386,6 +492,10 @@ class DatabaseManager:
             # Total publications
             cursor = conn.execute("SELECT COUNT(*) FROM publications")
             stats['total_publications'] = cursor.fetchone()[0]
+            
+            # Total analyses
+            cursor = conn.execute("SELECT COUNT(*) FROM analyses")
+            stats['total_analyses'] = cursor.fetchone()[0]
             
             # Total unique advogados
             cursor = conn.execute("SELECT COUNT(*) FROM advogados")

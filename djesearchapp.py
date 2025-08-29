@@ -611,6 +611,31 @@ def display_publication_card(pub: Dict, index: int):
         if link:
             st.markdown(f"[🔗 Acessar processo]({link})")
         
+        # Check for analysis linked to this publication
+        try:
+            from database import DatabaseManager
+            db = DatabaseManager()
+            
+            # If we have the database ID from the publication data
+            if '_db_id' in pub:
+                analysis = db.get_analysis_for_publication(pub['_db_id'])
+                
+                # If we have an analysis, display it
+                if analysis:
+                    st.markdown("---")
+                    st.markdown("### 🧠 **Análise Inteligente**")
+                    with st.expander("📊 Ver Análise Completa", expanded=True):
+                        # Display the HTML content of the analysis
+                        st.components.v1.html(analysis['html_content'], height=400, scrolling=True)
+                        
+                        st.markdown(f"*Análise criada em: {analysis['upload_date']}*")
+                        st.markdown(f"*Por: {analysis['uploaded_by']}*")
+                        
+        except Exception as e:
+            # Don't break the card display if analysis loading fails
+            import logging
+            logging.warning(f"Could not load analysis for publication: {str(e)}")
+        
         st.markdown("</div>", unsafe_allow_html=True)
         st.markdown("---")
 

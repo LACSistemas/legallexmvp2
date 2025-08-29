@@ -35,76 +35,95 @@ def admin_page():
         AuthSystem.logout()
     
     st.markdown("### Enviar Análises Inteligentes")
-    st.markdown("Faça upload de arquivos HTML com análises jurídicas que serão disponibilizadas aos clientes.")
+    st.markdown("Vincule análises jurídicas às publicações específicas do banco de dados.")
     
-    uploaded_files = st.file_uploader(
-        "Selecione os arquivos HTML",
+    # Date selector for publications
+    from database import DatabaseManager
+    
+    selected_date = st.date_input(
+        "📅 Selecione a data das publicações:",
+        value=datetime.now().date(),
+        help="Escolha a data para ver os processos disponíveis"
+    )
+    
+    # Get publications for selected date
+    db = DatabaseManager()
+    date_str = selected_date.strftime('%d/%m/%Y')
+    publications = db.get_publications_for_date_dropdown(date_str)
+    
+    if not publications:
+        st.warning(f"⚠️ Nenhuma publicação encontrada para {date_str}. Execute uma busca primeiro.")
+        return
+    
+    st.success(f"📋 {len(publications)} processos encontrados para {date_str}")
+    
+    # Process selection dropdown
+    process_options = {pub['id']: pub['display_text'] for pub in publications}
+    
+    selected_publication_id = st.selectbox(
+        "🔍 Selecione o processo para vincular a análise:",
+        options=list(process_options.keys()),
+        format_func=lambda x: process_options[x],
+        help="A análise será vinculada a este processo específico"
+    )
+    
+    # File upload
+    uploaded_file = st.file_uploader(
+        "📎 Selecione o arquivo HTML da análise",
         type=['html'],
-        accept_multiple_files=True,
+        accept_multiple_files=False,
         key="analysis_upload"
     )
     
-    if uploaded_files:
-        if st.button("📤 Enviar Análises", type="primary"):
-            saved_count = 0
-            
-            # Create analyses directory if it doesn't exist
-            os.makedirs("analyses", exist_ok=True)
-            
-            for uploaded_file in uploaded_files:
-                try:
-                    # Generate unique filename with timestamp
-                    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
-                    original_name = uploaded_file.name.replace('.html', '')
-                    filename = f"analyses/{timestamp}_{original_name}.html"
-                    
-                    # Save file
-                    with open(filename, 'wb') as f:
-                        f.write(uploaded_file.getbuffer())
-                    
-                    logging.info(f"Analysis file uploaded: {filename}")
-                    saved_count += 1
-                except Exception as e:
-                    logging.error(f"Error uploading file {uploaded_file.name}: {str(e)}")
-                    st.error(f"Erro ao enviar {uploaded_file.name}: {str(e)}")
-            
-            st.success(f"✅ {saved_count} análise(s) enviada(s) com sucesso!")
+    if uploaded_file and selected_publication_id:
+        if st.button("📤 Enviar Análise", type="primary"):
+            try:
+                # Read HTML content
+                html_content = uploaded_file.read().decode('utf-8')
+                
+                # Generate unique filename with timestamp
+                timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+                original_name = uploaded_file.name.replace('.html', '')
+                filename = f"{timestamp}_{original_name}.html"
+                
+                # Save to database
+                analysis_id = db.save_analysis(
+                    publication_id=selected_publication_id,
+                    filename=filename,
+                    original_filename=uploaded_file.name,
+                    html_content=html_content,
+                    uploaded_by="lucasaurich"
+                )
+                
+                logging.info(f"Analysis uploaded and linked: ID {analysis_id} to publication {selected_publication_id}")
+                st.success(f"✅ Análise '{uploaded_file.name}' vinculada ao processo com sucesso!")
+                st.info(f"🔗 Análise ID: {analysis_id}")
+                
+                # Show selected process info
+                selected_pub = next(pub for pub in publications if pub['id'] == selected_publication_id)
+                st.markdown(f"**Processo vinculado:** {selected_pub['numeroprocessocommascara']}")
+                st.markdown(f"**Órgão:** {selected_pub['nome_orgao']}")
+                
+            except Exception as e:
+                logging.error(f"Error uploading analysis: {str(e)}")
+                st.error(f"❌ Erro ao enviar análise: {str(e)}")
     
-    # Show existing analyses count and management
-    existing_analyses = sorted(glob.glob("analyses/*.html"), key=os.path.getmtime, reverse=True)
-    st.info(f"📊 Total de análises disponíveis: {len(existing_analyses)}")
+    # Show existing analyses from database
+    st.markdown("---")
+    st.markdown("### 📊 Análises Cadastradas")
     
-    # Analysis management section
-    if existing_analyses:
-        st.markdown("### 🗂️ Gerenciar Análises Existentes")
+    try:
+        stats = db.get_statistics()
+        total_analyses = stats.get('total_analyses', 0)
+        st.info(f"📈 Total de análises no banco: {total_analyses}")
         
-        # Show list of analyses with delete buttons
-        for analysis_path in existing_analyses[:10]:  # Show only latest 10
-            filename = os.path.basename(analysis_path)
-            readable_name = filename.replace('.html', '').replace('_', ' - ', 1)
-            mod_time = datetime.fromtimestamp(os.path.getmtime(analysis_path))
-            
-            col1, col2 = st.columns([4, 1])
-            with col1:
-                st.markdown(f"**{readable_name}**")
-                st.markdown(f"*Criado: {mod_time.strftime('%d/%m/%Y às %H:%M')}*")
-            
-            with col2:
-                if st.button("🗑️ Deletar", key=f"delete_{filename}"):
-                    try:
-                        os.remove(analysis_path)
-                        logging.info(f"Analysis file deleted: {analysis_path}")
-                        st.success(f"✅ Arquivo deletado: {readable_name}")
-                        st.rerun()
-                    except Exception as e:
-                        logging.error(f"Error deleting file {analysis_path}: {str(e)}")
-                        st.error(f"❌ Erro ao deletar arquivo: {str(e)}")
-            
-            st.markdown("---")
+        if total_analyses > 0:
+            # Could add a management section here in the future
+            st.markdown("*Análises estão vinculadas às publicações e aparecem automaticamente nos cards.*")
         
-        # Show total count if more than 10
-        if len(existing_analyses) > 10:
-            st.info(f"Mostrando 10 de {len(existing_analyses)} análises. Os demais podem ser gerenciados via sistema de arquivos.")
+    except Exception as e:
+        st.error(f"Erro ao carregar estatísticas: {str(e)}")
+        logging.error(f"Error loading analysis statistics: {str(e)}")
 
 def client_dashboard():
     logging.info("Client dashboard accessed")
