@@ -369,6 +369,83 @@ class DatabaseManager:
             return self.get_publications_by_search_execution(search_execution['id'])
         return []
     
+    def get_publications_with_analyses_by_date(self, date: str) -> List[Dict]:
+        """Get publications that have analyses for a specific date"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                SELECT p.*, a.id as analysis_id, a.filename, a.original_filename, 
+                       a.html_content, a.upload_date, a.uploaded_by,
+                       se.date
+                FROM publications p
+                JOIN search_executions se ON p.search_execution_id = se.id
+                JOIN analyses a ON p.id = a.publication_id
+                WHERE se.date = ?
+                ORDER BY p.numeroprocessocommascara
+            """, (date,))
+            
+            publications_with_analyses = []
+            columns = [desc[0] for desc in cursor.description]
+            
+            for row in cursor.fetchall():
+                data = dict(zip(columns, row))
+                
+                # Create publication dict (API format)
+                pub = {
+                    'id': data['api_id'],
+                    'data_disponibilizacao': data['data_disponibilizacao'],
+                    'siglaTribunal': data['sigla_tribunal'],
+                    'tipoComunicacao': data['tipo_comunicacao'],
+                    'nomeOrgao': data['nome_orgao'],
+                    'texto': data['texto'],
+                    'numero_processo': data['numero_processo'],
+                    'numeroprocessocommascara': data['numeroprocessocommascara'],
+                    'meio': data['meio'],
+                    'link': data['link'],
+                    'tipoDocumento': data['tipo_documento'],
+                    'nomeClasse': data['nome_classe'],
+                    'codigoClasse': data['codigo_classe'],
+                    'numeroComunicacao': data['numero_comunicacao'],
+                    'ativo': data['ativo'],
+                    'hash': data['hash'],
+                    'datadisponibilizacao': data['datadisponibilizacao'],
+                    'meiocompleto': data['meio_completo'],
+                    '_source_rule': data['source_rule'],
+                    '_db_id': data['id']
+                }
+                
+                # Get destinatarios for this publication
+                dest_cursor = conn.execute("""
+                    SELECT nome, polo, comunicacao_id FROM destinatarios WHERE publication_id = ?
+                """, (data['id'],))
+                pub['destinatarios'] = [
+                    {'nome': row[0], 'polo': row[1], 'comunicacao_id': row[2]}
+                    for row in dest_cursor.fetchall()
+                ]
+                
+                # Create analysis dict
+                analysis = {
+                    'id': data['analysis_id'],
+                    'filename': data['filename'],
+                    'original_filename': data['original_filename'],
+                    'html_content': data['html_content'],
+                    'upload_date': data['upload_date'],
+                    'uploaded_by': data['uploaded_by']
+                }
+                
+                publications_with_analyses.append({
+                    'publication': pub,
+                    'analysis': analysis
+                })
+            
+            return publications_with_analyses
+            
+        except Exception as e:
+            logging.error(f"Error getting publications with analyses by date: {str(e)}")
+            return []
+        finally:
+            conn.close()
+    
     def get_search_history(self, limit: int = 50) -> List[Dict]:
         """Get search execution history"""
         conn = self.get_connection()

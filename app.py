@@ -549,56 +549,47 @@ def show_analyses_page():
     st.title("🔍 Análises Inteligentes")
     st.markdown("---")
     
-    st.markdown("### Análises Jurídicas Especializadas")
-    st.markdown("Aqui você encontra análises detalhadas por IA dos casos jurídicos de Educação (Configurado pelo Darwin e Multivix), Será automaticamente renovada diariamente as 06 da manhã.")
+    st.markdown("### Análises Jurídicas Vinculadas a Publicações")
+    st.markdown("Visualize análises detalhadas vinculadas aos processos específicos. Cada análise está conectada a uma publicação do sistema.")
     
-    # Get all analysis files
-    analysis_files = sorted(glob.glob("analyses/*.html"), key=os.path.getmtime, reverse=True)
+    # Date selector
+    selected_date = st.date_input(
+        "📅 Selecione a data para ver as análises:",
+        value=datetime.now().date(),
+        help="Escolha a data para ver análises disponíveis"
+    )
     
-    if not analysis_files:
-        st.info("📄 Nenhuma análise disponível no momento. Novas análises são adicionadas diariamente.")
+    # Get publications with analyses from database
+    from database import DatabaseManager
+    db = DatabaseManager()
+    date_str = selected_date.strftime('%d/%m/%Y')
+    
+    publications_with_analyses = db.get_publications_with_analyses_by_date(date_str)
+    
+    if not publications_with_analyses:
+        st.info(f"📄 Nenhuma análise encontrada para {date_str}.")
+        st.markdown("**Para criar análises:**")
+        st.markdown("1. Certifique-se que há publicações salvas para esta data")
+        st.markdown("2. Faça login como admin (lucasaurich)")
+        st.markdown("3. Use a página de upload para vincular análises aos processos")
         return
     
-    # Pagination
-    items_per_page = 10
-    total_items = len(analysis_files)
-    total_pages = (total_items + items_per_page - 1) // items_per_page
+    st.success(f"📊 {len(publications_with_analyses)} análise(s) encontrada(s) para {date_str}")
     
-    if total_pages > 1:
-        col1, col2, col3 = st.columns([1, 2, 1])
-        with col2:
-            page = st.selectbox("Página", range(1, total_pages + 1), key="analyses_page")
-    else:
-        page = 1
+    # Import the display function
+    from djesearchapp import display_publication_with_analysis
     
-    start_idx = (page - 1) * items_per_page
-    end_idx = min(start_idx + items_per_page, total_items)
-    current_files = analysis_files[start_idx:end_idx]
-    
-    st.info(f"📊 Mostrando {len(current_files)} de {total_items} análises (Página {page} de {total_pages})")
-    
-    # Display analyses
-    for i, file_path in enumerate(current_files):
-        filename = os.path.basename(file_path)
-        # Extract readable name from filename
-        readable_name = filename.replace('.html', '').replace('_', ' - ', 1)
+    # Display each publication with its analysis
+    for i, item in enumerate(publications_with_analyses):
+        publication = item['publication']
+        analysis = item['analysis']
         
-        # Get file modification time
-        mod_time = datetime.fromtimestamp(os.path.getmtime(file_path))
+        # Display publication card with integrated analysis
+        display_publication_with_analysis(publication, analysis, i)
         
-        with st.expander(f"📄 {readable_name}", expanded=False):
-            st.markdown(f"**Data:** {mod_time.strftime('%d/%m/%Y às %H:%M')}")
-            
-            # Read and display HTML content
-            try:
-                with open(file_path, 'r', encoding='utf-8') as f:
-                    html_content = f.read()
-                
-                # Display HTML content in an iframe-like container
-                st.components.v1.html(html_content, height=600, scrolling=True)
-                
-            except Exception as e:
-                st.error(f"Erro ao carregar análise: {str(e)}")
+        # Add some spacing between items
+        if i < len(publications_with_analyses) - 1:
+            st.markdown("<br>", unsafe_allow_html=True)
 
 def main():
     try:

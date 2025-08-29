@@ -611,32 +611,69 @@ def display_publication_card(pub: Dict, index: int):
         if link:
             st.markdown(f"[🔗 Acessar processo]({link})")
         
-        # Check for analysis linked to this publication
-        try:
-            from database import DatabaseManager
-            db = DatabaseManager()
-            
-            # If we have the database ID from the publication data
-            if '_db_id' in pub:
-                analysis = db.get_analysis_for_publication(pub['_db_id'])
-                
-                # If we have an analysis, display it
-                if analysis:
-                    st.markdown("---")
-                    st.markdown("### 🧠 **Análise Inteligente**")
-                    with st.expander("📊 Ver Análise Completa", expanded=True):
-                        # Display the HTML content of the analysis
-                        st.components.v1.html(analysis['html_content'], height=400, scrolling=True)
-                        
-                        st.markdown(f"*Análise criada em: {analysis['upload_date']}*")
-                        st.markdown(f"*Por: {analysis['uploaded_by']}*")
-                        
-        except Exception as e:
-            # Don't break the card display if analysis loading fails
-            import logging
-            logging.warning(f"Could not load analysis for publication: {str(e)}")
         
         st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("---")
+
+def display_publication_with_analysis(pub: Dict, analysis: Dict, index: int):
+    """Exibe uma publicação COM análise vinculada (só para página Análises Inteligentes)"""
+    with st.container():
+        st.markdown(f"""
+        <div class="publication-card">
+            <div class="publication-title">
+                {pub.get('tipoComunicacao', 'N/A')} - {pub.get('siglaTribunal', 'N/A')}
+                <span style="float: right; font-size: 12px; color: #999;">
+                    Fonte: {pub.get('_source_rule', 'N/A')}
+                </span>
+            </div>
+            <div class="publication-info">
+                📅 <strong>Data:</strong> {pub.get('datadisponibilizacao', 'N/A')} | 
+                🏛️ <strong>Órgão:</strong> {pub.get('nomeOrgao', 'N/A')}
+            </div>
+            <div class="publication-info">
+                📋 <strong>Processo:</strong> {pub.get('numeroprocessocommascara', 'N/A')} | 
+                📝 <strong>Classe:</strong> {pub.get('nomeClasse', 'N/A')}
+            </div>
+        """, unsafe_allow_html=True)
+        
+        # Texto da publicação
+        texto = pub.get('texto', 'Texto não disponível')
+        if len(texto) > 300:
+            with st.expander("📄 Ver texto da publicação"):
+                st.markdown(f'<div class="publication-text">{texto}</div>', unsafe_allow_html=True)
+        else:
+            st.markdown(f'<div class="publication-text">{texto}</div>', unsafe_allow_html=True)
+        
+        # Destinatários (resumido)
+        destinatarios = pub.get('destinatarios', [])
+        if destinatarios:
+            dest_names = [dest.get('nome', 'N/A') for dest in destinatarios[:2]]
+            if len(destinatarios) > 2:
+                dest_names.append(f"(+{len(destinatarios)-2} outros)")
+            st.markdown(f"**👥 Destinatários:** {', '.join(dest_names)}")
+        
+        # Link para o processo
+        link = pub.get('link', '')
+        if link:
+            st.markdown(f"[🔗 Acessar processo]({link})")
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+        
+        # ANÁLISE INTELIGENTE (sempre presente aqui)
+        st.markdown("---")
+        st.markdown("### 🧠 **Análise Inteligente**")
+        
+        # Mostrar metadados da análise
+        col1, col2 = st.columns([3, 1])
+        with col1:
+            st.markdown(f"*Criada em: {analysis['upload_date']}*")
+        with col2:
+            st.markdown(f"*Por: {analysis['uploaded_by']}*")
+        
+        # Conteúdo HTML da análise
+        with st.container():
+            st.components.v1.html(analysis['html_content'], height=500, scrolling=True)
+        
         st.markdown("---")
 
 def main():
