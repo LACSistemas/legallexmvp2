@@ -368,13 +368,39 @@ def show_daily_results():
                 # Prepare data for Excel
                 excel_data = []
                 for pub in publications:
+                    # Extract destinatarios (nome and polo are inside destinatarios array)
+                    destinatarios = pub.get('destinatarios', [])
+                    destinatarios_text = '; '.join([
+                        f"{dest.get('nome', '')} ({dest.get('polo', '')})" 
+                        for dest in destinatarios
+                    ]) if destinatarios else ''
+                    
+                    # Extract advogados
+                    advogados = pub.get('destinatarioadvogados', [])
+                    advogados_text = '; '.join([
+                        f"{adv.get('advogado', {}).get('nome', '')} - OAB {adv.get('advogado', {}).get('numero_oab', '')} {adv.get('advogado', {}).get('uf_oab', '')}"
+                        for adv in advogados
+                    ]) if advogados else ''
+                    
                     # Extract correct fields for Excel - each publicação becomes one row
                     row = {
+                        'data_disponibilizacao': pub.get('data_disponibilizacao', ''),
+                        'sigla_tribunal': pub.get('siglaTribunal', ''),
+                        'tipo_comunicacao': pub.get('tipoComunicacao', ''),
+                        'nome_orgao': pub.get('nomeOrgao', ''),
                         'texto': pub.get('texto', ''),
-                        'numero_processo': pub.get('numero_processo', ''),
-                        'nome': pub.get('nome', ''),
-                        'polo': pub.get('polo', ''),
-                        'datadisponibilizacao': pub.get('datadisponibilizacao', '')
+                        'numero_processo': pub.get('numeroprocessocommascara', ''),
+                        'numero_processo_simples': pub.get('numero_processo', ''),
+                        'meio': pub.get('meio', ''),
+                        'link': pub.get('link', ''),
+                        'tipo_documento': pub.get('tipoDocumento', ''),
+                        'nome_classe': pub.get('nomeClasse', ''),
+                        'codigo_classe': pub.get('codigoClasse', ''),
+                        'destinatarios': destinatarios_text,
+                        'advogados': advogados_text,
+                        'hash': pub.get('hash', ''),
+                        'data_disponibilizacao_alt': pub.get('datadisponibilizacao', ''),
+                        'fonte_regra': pub.get('_source_rule', '')
                     }
                     excel_data.append(row)
                 
