@@ -344,19 +344,13 @@ def show_daily_results():
                     # Prepare data for Excel
                     excel_data = []
                     for pub in publications:
-                        # Extract key information for Excel
+                        # Extract correct fields for Excel - each publicação becomes one row
                         row = {
-                            'Número do Processo': pub.get('numeroProcesso', ''),
-                            'Data de Disponibilização': pub.get('dataDisponibilizacao', ''),
-                            'Órgão Julgador': pub.get('siglaOrgaoJulgador', ''),
-                            'Nome das Partes': ', '.join([parte.get('nome', '') for parte in pub.get('nomePartes', [])]),
-                            'Advogados': ', '.join([
-                                f"{adv.get('advogado', {}).get('nome', '')} (OAB: {adv.get('advogado', {}).get('numero_oab', '')})"
-                                for adv in pub.get('destinatarioadvogados', [])
-                            ]),
-                            'Tipo de Publicação': pub.get('tipoPublicacao', ''),
-                            'Conteúdo': pub.get('conteudo', ''),
-                            'Fonte da Regra': pub.get('_source_rule', '')
+                            'texto': pub.get('texto', ''),
+                            'numero_processo': pub.get('numero_processo', ''),
+                            'nome': pub.get('nome', ''),
+                            'polo': pub.get('polo', ''),
+                            'datadisponibilizacao': pub.get('datadisponibilizacao', '')
                         }
                         excel_data.append(row)
                     
