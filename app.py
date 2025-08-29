@@ -305,82 +305,106 @@ def show_daily_results():
     st.markdown(f"### Resultados de {selected_date.strftime('%d/%m/%Y')}")
     
     # Check if we have stored results for this date
-    if 'last_auto_search_results' in st.session_state and 'last_search_date' in st.session_state:
+    publications = None
+    
+    # First, try to load from saved file for the selected date
+    try:
+        import json
+        import os
+        
+        results_dir = "daily_results"
+        date_str = selected_date.strftime('%d/%m/%Y')
+        filename = f"Busca do dia {date_str}"
+        results_file = os.path.join(results_dir, f"{filename}.json")
+        
+        if os.path.exists(results_file):
+            with open(results_file, 'r', encoding='utf-8') as f:
+                results_data = json.load(f)
+                publications = results_data.get('publications', [])
+                logging.info(f"Loaded {len(publications)} publications from saved file for {date_str}")
+    except Exception as e:
+        logging.error(f"Error loading saved results for {selected_date}: {str(e)}")
+    
+    # Fallback to session state if no file found and date matches today
+    if not publications and 'last_auto_search_results' in st.session_state and 'last_search_date' in st.session_state:
         if st.session_state.last_search_date.date() == selected_date:
             publications = st.session_state.last_auto_search_results
-            
-            from djesearchapp import display_publication_card
-            import math
-            
-            # Pagination
-            items_per_page = 10
-            total_items = len(publications)
-            total_pages = math.ceil(total_items / items_per_page) if total_items > 0 else 1
-            
-            if total_pages > 1:
-                col1, col2, col3 = st.columns([1, 2, 1])
-                with col2:
-                    page = st.selectbox("Página", range(1, total_pages + 1))
-            else:
-                page = 1
-            
-            start_idx = (page - 1) * items_per_page
-            end_idx = start_idx + items_per_page
-            current_items = publications[start_idx:end_idx]
-            
-            st.info(f"📊 Mostrando {len(current_items)} de {total_items} publicações encontradas")
-            
-            for i, pub in enumerate(current_items):
-                display_publication_card(pub, start_idx + i)
-            
-            # Excel download button
-            st.markdown("---")
-            st.markdown("## 📊 Exportar Resultados")
-            if st.button("📋 Baixar em Excel"):
-                try:
-                    import pandas as pd
-                    from io import BytesIO
-                    
-                    # Prepare data for Excel
-                    excel_data = []
-                    for pub in publications:
-                        # Extract correct fields for Excel - each publicação becomes one row
-                        row = {
-                            'texto': pub.get('texto', ''),
-                            'numero_processo': pub.get('numero_processo', ''),
-                            'nome': pub.get('nome', ''),
-                            'polo': pub.get('polo', ''),
-                            'datadisponibilizacao': pub.get('datadisponibilizacao', '')
-                        }
-                        excel_data.append(row)
-                    
-                    # Create DataFrame
-                    df = pd.DataFrame(excel_data)
-                    
-                    # Create Excel file in memory
-                    output = BytesIO()
-                    with pd.ExcelWriter(output, engine='openpyxl') as writer:
-                        df.to_excel(writer, index=False, sheet_name='Publicações')
-                    
-                    # Get the Excel data
-                    excel_bytes = output.getvalue()
-                    
-                    # Generate filename with date
-                    brasilia_tz = pytz.timezone('America/Sao_Paulo')
-                    date_str = selected_date.strftime('%d-%m-%Y')
-                    filename = f"Busca_do_dia_{date_str}.xlsx"
-                    
-                    st.download_button(
-                        label="💾 Download Excel",
-                        data=excel_bytes,
-                        file_name=filename,
-                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-                        key="download_excel"
-                    )
-                    
-                except Exception as e:
-                    logging.error(f"Error creating Excel file: {str(e)}")
-                    st.error(f"❌ Erro ao criar arquivo Excel: {str(e)}")
+            logging.info(f"Using session state results for {selected_date}")
+    
+    # If we have publications, display them
+    if publications:
+        from djesearchapp import display_publication_card
+        import math
+        
+        # Pagination
+        items_per_page = 10
+        total_items = len(publications)
+        total_pages = math.ceil(total_items / items_per_page) if total_items > 0 else 1
+        
+        if total_pages > 1:
+            col1, col2, col3 = st.columns([1, 2, 1])
+            with col2:
+                page = st.selectbox("Página", range(1, total_pages + 1))
+        else:
+            page = 1
+        
+        start_idx = (page - 1) * items_per_page
+        end_idx = start_idx + items_per_page
+        current_items = publications[start_idx:end_idx]
+        
+        st.info(f"📊 Mostrando {len(current_items)} de {total_items} publicações encontradas")
+        
+        for i, pub in enumerate(current_items):
+            display_publication_card(pub, start_idx + i)
+        
+        # Excel download button
+        st.markdown("---")
+        st.markdown("## 📊 Exportar Resultados")
+        if st.button("📋 Baixar em Excel"):
+            try:
+                import pandas as pd
+                from io import BytesIO
+                
+                # Prepare data for Excel
+                excel_data = []
+                for pub in publications:
+                    # Extract correct fields for Excel - each publicação becomes one row
+                    row = {
+                        'texto': pub.get('texto', ''),
+                        'numero_processo': pub.get('numero_processo', ''),
+                        'nome': pub.get('nome', ''),
+                        'polo': pub.get('polo', ''),
+                        'datadisponibilizacao': pub.get('datadisponibilizacao', '')
+                    }
+                    excel_data.append(row)
+                
+                # Create DataFrame
+                df = pd.DataFrame(excel_data)
+                
+                # Create Excel file in memory
+                output = BytesIO()
+                with pd.ExcelWriter(output, engine='openpyxl') as writer:
+                    df.to_excel(writer, index=False, sheet_name='Publicações')
+                
+                # Get the Excel data
+                excel_bytes = output.getvalue()
+                
+                # Generate filename with date
+                brasilia_tz = pytz.timezone('America/Sao_Paulo')
+                date_str = selected_date.strftime('%d-%m-%Y')
+                filename = f"Busca_do_dia_{date_str}.xlsx"
+                
+                st.download_button(
+                    label="💾 Download Excel",
+                    data=excel_bytes,
+                    file_name=filename,
+                    mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    key="download_excel"
+                )
+                
+            except Exception as e:
+                logging.error(f"Error creating Excel file: {str(e)}")
+                st.error(f"❌ Erro ao criar arquivo Excel: {str(e)}")
         else:
             st.warning("⚠️ Nenhum resultado encontrado para esta data.")
     else:
