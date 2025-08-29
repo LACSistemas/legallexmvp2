@@ -173,22 +173,43 @@ class CronJobScheduler:
             
             publications = searcher.execute_rules(enabled_rules, log_progress)
             
-            # Save results
-            date_str = brasilia_now.strftime('%Y-%m-%d')
-            results_file = os.path.join(self.results_dir, f"results_{date_str}.json")
-            
-            results_data = {
-                'date': date_str,
-                'timestamp': brasilia_now.isoformat(),
-                'rules_executed': len(enabled_rules),
-                'publications_found': len(publications),
-                'publications': publications
-            }
-            
-            with open(results_file, 'w', encoding='utf-8') as f:
-                json.dump(results_data, f, ensure_ascii=False, indent=2)
-            
-            logging.info(f"Daily search completed successfully. Found {len(publications)} publications. Results saved to {results_file}")
+            # Save results to database
+            try:
+                from database import DatabaseManager
+                
+                db = DatabaseManager()
+                date_str = brasilia_now.strftime('%d/%m/%Y')
+                filename = f"Busca automática do dia {date_str}"
+                
+                search_execution_id = db.save_search_execution(
+                    name=filename,
+                    date=date_str,
+                    timestamp=brasilia_now,
+                    rules_executed=len(enabled_rules),
+                    publications=publications,
+                    stats={'automatic_search': True}
+                )
+                
+                logging.info(f"Daily search completed successfully. Found {len(publications)} publications. Results saved to database with ID {search_execution_id}")
+                
+            except Exception as e:
+                logging.error(f"Error saving daily search results to database: {str(e)}")
+                # Fallback to file save
+                date_str_file = brasilia_now.strftime('%Y-%m-%d')
+                results_file = os.path.join(self.results_dir, f"results_{date_str_file}.json")
+                
+                results_data = {
+                    'date': date_str_file,
+                    'timestamp': brasilia_now.isoformat(),
+                    'rules_executed': len(enabled_rules),
+                    'publications_found': len(publications),
+                    'publications': publications
+                }
+                
+                with open(results_file, 'w', encoding='utf-8') as f:
+                    json.dump(results_data, f, ensure_ascii=False, indent=2)
+                
+                logging.info(f"Daily search completed successfully. Found {len(publications)} publications. Fallback saved to {results_file}")
             
         except Exception as e:
             logging.error(f"Error during daily search: {str(e)}")

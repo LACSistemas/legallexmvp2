@@ -307,23 +307,20 @@ def show_daily_results():
     # Check if we have stored results for this date
     publications = None
     
-    # First, try to load from saved file for the selected date
+    # First, try to load from database for the selected date
     try:
-        import json
-        import os
+        from database import DatabaseManager
         
-        results_dir = "daily_results"
+        db = DatabaseManager()
         date_str = selected_date.strftime('%d/%m/%Y')
-        filename = f"Busca do dia {date_str}"
-        results_file = os.path.join(results_dir, f"{filename}.json")
         
-        if os.path.exists(results_file):
-            with open(results_file, 'r', encoding='utf-8') as f:
-                results_data = json.load(f)
-                publications = results_data.get('publications', [])
-                logging.info(f"Loaded {len(publications)} publications from saved file for {date_str}")
+        # Get publications from database
+        publications = db.get_publications_by_date(date_str)
+        if publications:
+            logging.info(f"Loaded {len(publications)} publications from database for {date_str}")
+            
     except Exception as e:
-        logging.error(f"Error loading saved results for {selected_date}: {str(e)}")
+        logging.error(f"Error loading results from database for {selected_date}: {str(e)}")
     
     # Fallback to session state if no file found and date matches today
     if not publications and 'last_auto_search_results' in st.session_state and 'last_search_date' in st.session_state:
@@ -460,40 +457,34 @@ def show_daily_results():
                 st.session_state.last_auto_search_results = publications
                 st.session_state.last_search_date = datetime.now()
                 
-                # Save results to file with date format
+                # Save results to database
                 try:
-                    import json
-                    import os
+                    from database import DatabaseManager
                     
-                    # Ensure directory exists
-                    results_dir = "daily_results"
-                    os.makedirs(results_dir, exist_ok=True)
+                    # Create database manager instance
+                    db = DatabaseManager()
                     
                     # Create filename with today's date
                     brasilia_tz = pytz.timezone('America/Sao_Paulo')
                     brasilia_now = datetime.now(brasilia_tz)
                     date_str = brasilia_now.strftime('%d/%m/%Y')
                     filename = f"Busca do dia {date_str}"
-                    results_file = os.path.join(results_dir, f"{filename}.json")
                     
-                    results_data = {
-                        'name': filename,
-                        'date': date_str,
-                        'timestamp': brasilia_now.isoformat(),
-                        'rules_executed': len(st.session_state.auto_rules),
-                        'publications_found': len(publications),
-                        'publications': publications,
-                        'stats': stats
-                    }
+                    # Save to database
+                    search_execution_id = db.save_search_execution(
+                        name=filename,
+                        date=date_str,
+                        timestamp=brasilia_now,
+                        rules_executed=len(st.session_state.auto_rules),
+                        publications=publications,
+                        stats=stats
+                    )
                     
-                    with open(results_file, 'w', encoding='utf-8') as f:
-                        json.dump(results_data, f, ensure_ascii=False, indent=2)
-                    
-                    logging.info(f"Manual search results saved to {results_file}")
+                    logging.info(f"Manual search results saved to database with ID {search_execution_id}")
                     status_text.success(f"✅ Busca concluída e salva como '{filename}'! {len(publications)} publicações encontradas.")
                     
                 except Exception as e:
-                    logging.error(f"Error saving manual search results: {str(e)}")
+                    logging.error(f"Error saving manual search results to database: {str(e)}")
                     # Don't show error to user, just log it
                 
                 st.rerun()
