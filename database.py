@@ -27,7 +27,8 @@ class DatabaseManager:
     def get_connection(self):
         """Get database connection with foreign key support"""
         conn = sqlite3.connect(self.db_path)
-        conn.execute("PRAGMA foreign_keys = ON")
+        # Temporarily disable foreign keys to debug
+        # conn.execute("PRAGMA foreign_keys = ON")
         return conn
     
     def init_database(self):
