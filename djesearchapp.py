@@ -663,13 +663,6 @@ def display_publication_with_analysis(pub: Dict, analysis: Dict, index: int):
         st.markdown("---")
         st.markdown("### 🧠 **Análise Inteligente**")
         
-        # Mostrar metadados da análise
-        col1, col2 = st.columns([3, 1])
-        with col1:
-            st.markdown(f"*Criada em: {analysis['upload_date']}*")
-        with col2:
-            st.markdown(f"*Por: {analysis['uploaded_by']}*")
-        
         # Conteúdo HTML da análise
         with st.container():
             st.components.v1.html(analysis['html_content'], height=500, scrolling=True)
