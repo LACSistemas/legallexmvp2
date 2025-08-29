@@ -568,10 +568,6 @@ def show_analyses_page():
     
     if not publications_with_analyses:
         st.info(f"📄 Nenhuma análise encontrada para {date_str}.")
-        st.markdown("**Para criar análises:**")
-        st.markdown("1. Certifique-se que há publicações salvas para esta data")
-        st.markdown("2. Faça login como admin (lucasaurich)")
-        st.markdown("3. Use a página de upload para vincular análises aos processos")
         return
     
     st.success(f"📊 {len(publications_with_analyses)} análise(s) encontrada(s) para {date_str}")
