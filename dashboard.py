@@ -195,80 +195,157 @@ def main():
     st.title("📊 Dashboard Interativo")
     st.markdown("---")
     
-    # Sidebar filters
-    st.sidebar.header("🎛️ Filtros Interativos")
-    
-    # Date range selector
-    col_start, col_end = st.sidebar.columns(2)
-    with col_start:
-        start_date = st.date_input(
-            "📅 Data Inicial:",
-            value=date.today() - timedelta(days=30),
-            key="dash_start_date"
-        )
-    
-    with col_end:
-        end_date = st.date_input(
-            "📅 Data Final:",
-            value=date.today(),
-            key="dash_end_date"
-        )
-    
-    # Convert dates to string format
-    start_date_str = start_date.strftime('%d/%m/%Y')
-    end_date_str = end_date.strftime('%d/%m/%Y')
-    
-    # Tribunal filter
+    # Load initial data (last 30 days) to show immediate charts
     db = DatabaseManager()
-    all_tribunals = db.get_available_tribunals()
+    start_date_str = (date.today() - timedelta(days=30)).strftime('%d/%m/%Y')
+    end_date_str = date.today().strftime('%d/%m/%Y')
     
-    selected_tribunals = st.sidebar.multiselect(
-        "🏛️ Tribunais:",
-        options=all_tribunals,
-        default=all_tribunals[:5] if len(all_tribunals) > 5 else all_tribunals,
-        help="Selecione os tribunais para análise"
-    )
-    
-    # Load data with filters
     with st.spinner("Carregando dados do dashboard..."):
         publications, search_executions, analyses = get_dashboard_data(
-            start_date_str, end_date_str, selected_tribunals
+            start_date_str, end_date_str, None
         )
     
-    # Show data info
-    if not publications:
-        st.warning(f"⚠️ Nenhuma publicação encontrada no período de {start_date_str} a {end_date_str}")
-        st.info("💡 Dica: Execute algumas buscas primeiro ou ajuste o período dos filtros")
-        return
+    # Check total database content
+    conn = db.get_connection()
+    cursor = conn.execute("SELECT COUNT(*) FROM search_executions")
+    total_executions = cursor.fetchone()[0]
+    cursor = conn.execute("SELECT COUNT(*) FROM publications")  
+    total_publications = cursor.fetchone()[0]
+    conn.close()
     
-    st.success(f"📊 Exibindo dados de {start_date_str} a {end_date_str} • {len(publications)} publicações")
+    # Show immediate data info
+    if publications:
+        st.success(f"📊 Exibindo dados dos últimos 30 dias • {len(publications)} publicações encontradas")
+        
+        # KPI Cards Section
+        st.markdown("### 📈 Indicadores Principais")
+        create_kpi_cards(publications, search_executions, analyses)
+        
+        st.markdown("---")
+        
+        # Charts Grid - Show immediately
+        st.markdown("### 📊 Análises Visuais")
+        
+        # First row - Timeline and Tribunals
+        col1, col2 = st.columns(2)
+        
+        with col1:
+            create_publications_timeline_chart(publications)
+        
+        with col2:
+            create_tribunals_chart(publications)
+        
+        # Second row - Communication types and Process classes
+        col3, col4 = st.columns(2)
+        
+        with col3:
+            create_communication_types_pie(publications)
+        
+        with col4:
+            create_process_classes_chart(publications)
     
-    # KPI Cards Section
-    st.markdown("### 📈 Indicadores Principais")
-    create_kpi_cards(publications, search_executions, analyses)
+    else:
+        st.warning("⚠️ Nenhuma publicação encontrada nos últimos 30 dias no banco de dados")
+        
+        # Show database status
+        if total_executions == 0 and total_publications == 0:
+            st.error("🔍 **O banco de dados está vazio!**")
+            st.info("💡 **Para ver dados no dashboard:**")
+            st.markdown("""
+            1. Execute uma busca na página **"⚙️ Configurar Regras"**
+            2. Ou execute uma busca na página **"📋 Resultados Diários"**  
+            3. Os dados aparecerão automaticamente no dashboard
+            """)
+            
+            st.markdown("---")
+            st.markdown("### 🧪 Dados de Exemplo")
+            st.info("Aqui aparecerão seus gráficos quando houver dados:")
+            
+            # Show empty chart examples
+            col1, col2 = st.columns(2)
+            with col1:
+                st.markdown("**📅 Publicações por Data**")
+                st.caption("Gráfico de linha mostrando volume diário")
+                
+            with col2:
+                st.markdown("**🏛️ Top Tribunais**")
+                st.caption("Ranking dos tribunais mais ativos")
+                
+            col3, col4 = st.columns(2)  
+            with col3:
+                st.markdown("**📢 Tipos de Comunicação**")
+                st.caption("Distribuição em pizza dos tipos")
+                
+            with col4:
+                st.markdown("**⚖️ Classes Processuais**")
+                st.caption("Ranking das classes mais frequentes")
+        
+        else:
+            st.info(f"💾 Banco possui {total_executions} buscas e {total_publications} publicações, mas nenhuma nos últimos 30 dias")
     
+    # Collapsible Filters Section
     st.markdown("---")
-    
-    # Charts Grid
-    st.markdown("### 📊 Análises Visuais")
-    
-    # First row - Timeline and Tribunals
-    col1, col2 = st.columns(2)
-    
-    with col1:
-        create_publications_timeline_chart(publications)
-    
-    with col2:
-        create_tribunals_chart(publications)
-    
-    # Second row - Communication types and Process classes
-    col3, col4 = st.columns(2)
-    
-    with col3:
-        create_communication_types_pie(publications)
-    
-    with col4:
-        create_process_classes_chart(publications)
+    with st.expander("🎛️ Filtros Avançados", expanded=False):
+        st.markdown("**Personalize a visualização dos dados:**")
+        
+        # Date range selector
+        col_start, col_end = st.columns(2)
+        with col_start:
+            filter_start_date = st.date_input(
+                "📅 Data Inicial:",
+                value=date.today() - timedelta(days=30),
+                key="filter_start_date"
+            )
+        
+        with col_end:
+            filter_end_date = st.date_input(
+                "📅 Data Final:",
+                value=date.today(),
+                key="filter_end_date"
+            )
+        
+        # Tribunal filter
+        all_tribunals = db.get_available_tribunals()
+        
+        selected_tribunals = st.multiselect(
+            "🏛️ Tribunais:",
+            options=all_tribunals,
+            default=all_tribunals,
+            help="Selecione os tribunais para análise"
+        )
+        
+        # Apply filters button
+        if st.button("🔍 Aplicar Filtros", type="primary"):
+            filter_start_str = filter_start_date.strftime('%d/%m/%Y')
+            filter_end_str = filter_end_date.strftime('%d/%m/%Y')
+            
+            with st.spinner("Aplicando filtros..."):
+                filtered_publications, filtered_executions, filtered_analyses = get_dashboard_data(
+                    filter_start_str, filter_end_str, selected_tribunals
+                )
+            
+            if filtered_publications:
+                st.success(f"📊 Filtros aplicados: {filter_start_str} a {filter_end_str} • {len(filtered_publications)} publicações")
+                
+                # Update charts with filtered data
+                st.markdown("### 📈 Indicadores Filtrados")
+                create_kpi_cards(filtered_publications, filtered_executions, filtered_analyses)
+                
+                st.markdown("### 📊 Análises Filtradas")
+                
+                col1, col2 = st.columns(2)
+                with col1:
+                    create_publications_timeline_chart(filtered_publications)
+                with col2:
+                    create_tribunals_chart(filtered_publications)
+                
+                col3, col4 = st.columns(2)
+                with col3:
+                    create_communication_types_pie(filtered_publications)
+                with col4:
+                    create_process_classes_chart(filtered_publications)
+            else:
+                st.warning(f"⚠️ Nenhuma publicação encontrada no período filtrado: {filter_start_str} a {filter_end_str}")
     
     # Footer
     st.markdown("---")
