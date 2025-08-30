@@ -71,3 +71,6 @@ analyses/
 
 # HTML reports/files (unless specifically needed)
 *.html
+
+# Real server info (keep local only)
+realinfo.txt

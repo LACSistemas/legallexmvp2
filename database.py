@@ -446,6 +446,130 @@ class DatabaseManager:
         finally:
             conn.close()
     
+    def get_publications_by_date_range(self, start_date: str, end_date: str, selected_tribunals: list = None) -> List[Dict]:
+        """Get publications within a date range, optionally filtered by tribunals"""
+        conn = self.get_connection()
+        try:
+            base_query = """
+                SELECT p.*, json_extract(p.raw_data, '$') as full_data
+                FROM publications p
+                JOIN search_executions se ON p.search_execution_id = se.id
+                WHERE se.date >= ? AND se.date <= ?
+            """
+            params = [start_date, end_date]
+            
+            if selected_tribunals:
+                placeholders = ','.join(['?' for _ in selected_tribunals])
+                base_query += f" AND p.sigla_tribunal IN ({placeholders})"
+                params.extend(selected_tribunals)
+            
+            base_query += " ORDER BY se.date DESC, p.id DESC"
+            
+            cursor = conn.execute(base_query, params)
+            
+            publications = []
+            columns = [desc[0] for desc in cursor.description]
+            
+            for row in cursor.fetchall():
+                pub = dict(zip(columns, row))
+                
+                # Parse the raw_data JSON for additional fields
+                if pub.get('full_data'):
+                    try:
+                        import json
+                        full_data = json.loads(pub['full_data'])
+                        # Add missing fields from raw data
+                        for key in ['siglaTribunal', 'tipoComunicacao', 'nomeOrgao', 'nomeClasse', 'tipoDocumento', 'datadisponibilizacao']:
+                            if key not in pub or not pub[key]:
+                                pub[key] = full_data.get(key)
+                    except:
+                        pass
+                
+                # Get destinatarios
+                dest_cursor = conn.execute("SELECT * FROM destinatarios WHERE publication_id = ?", (pub['id'],))
+                pub['destinatarios'] = [dict(zip([desc[0] for desc in dest_cursor.description], dest_row)) 
+                                       for dest_row in dest_cursor.fetchall()]
+                
+                # Get advogados
+                adv_cursor = conn.execute("""
+                    SELECT a.*, pa.comunicacao_id 
+                    FROM advogados a 
+                    JOIN publication_advogados pa ON a.advogado_id = pa.advogado_id 
+                    WHERE pa.publication_id = ?
+                """, (pub['id'],))
+                pub['advogados'] = [dict(zip([desc[0] for desc in adv_cursor.description], adv_row)) 
+                                   for adv_row in adv_cursor.fetchall()]
+                
+                publications.append(pub)
+            
+            return publications
+            
+        except Exception as e:
+            logging.error(f"Error getting publications by date range: {str(e)}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_search_executions_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get search executions within a date range"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                SELECT * FROM search_executions 
+                WHERE date >= ? AND date <= ?
+                ORDER BY date DESC, timestamp DESC
+            """, (start_date, end_date))
+            
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logging.error(f"Error getting search executions by date range: {str(e)}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_analyses_by_date_range(self, start_date: str, end_date: str) -> List[Dict]:
+        """Get analyses within a date range"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                SELECT a.*, se.date as search_date
+                FROM analyses a
+                JOIN publications p ON a.publication_id = p.id
+                JOIN search_executions se ON p.search_execution_id = se.id
+                WHERE se.date >= ? AND se.date <= ?
+                ORDER BY a.uploaded_at DESC
+            """, (start_date, end_date))
+            
+            columns = [desc[0] for desc in cursor.description]
+            return [dict(zip(columns, row)) for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logging.error(f"Error getting analyses by date range: {str(e)}")
+            return []
+        finally:
+            conn.close()
+    
+    def get_available_tribunals(self) -> List[str]:
+        """Get list of available tribunals from publications"""
+        conn = self.get_connection()
+        try:
+            cursor = conn.execute("""
+                SELECT DISTINCT sigla_tribunal 
+                FROM publications 
+                WHERE sigla_tribunal IS NOT NULL AND sigla_tribunal != ''
+                ORDER BY sigla_tribunal
+            """)
+            
+            return [row[0] for row in cursor.fetchall()]
+            
+        except Exception as e:
+            logging.error(f"Error getting available tribunals: {str(e)}")
+            return []
+        finally:
+            conn.close()
+
     def get_search_history(self, limit: int = 50) -> List[Dict]:
         """Get search execution history"""
         conn = self.get_connection()

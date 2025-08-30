@@ -396,3 +396,7 @@ Sua aplicação LegalLex MVP2 está agora rodando em produção no seu VPS da Ho
 - **Admin**: username `lucasaurich`, password `caneta123` (alterar!)
 
 Lembre-se de manter o sistema sempre atualizado e fazer backups regulares dos seus dados!
+
+Actual info. 
+
+ssh root@72.60.57.132

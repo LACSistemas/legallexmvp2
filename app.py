@@ -146,7 +146,7 @@ def client_dashboard():
     
     page = st.sidebar.radio(
         "Selecione uma página:",
-        ["⚙️ Configurar Regras", "📋 Resultados Diários", "🔍 Análises Inteligentes"]
+        ["⚙️ Configurar Regras", "📋 Resultados Diários", "🔍 Análises Inteligentes", "📊 Dashboard"]
     )
     
     logging.info(f"Client navigated to page: {page}")
@@ -155,8 +155,11 @@ def client_dashboard():
         show_rules_config()
     elif page == "📋 Resultados Diários":
         show_daily_results()
-    else:
+    elif page == "🔍 Análises Inteligentes":
         show_analyses_page()
+    elif page == "📊 Dashboard":
+        import dashboard
+        dashboard.main()
 
 def show_rules_config():
     st.title("⚙️ Configuração de Regras Automáticas")
