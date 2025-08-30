@@ -195,9 +195,9 @@ def main():
     st.title("📊 Dashboard Interativo")
     st.markdown("---")
     
-    # Load initial data (last 30 days) to show immediate charts
+    # Load initial data (last 90 days) to show immediate charts
     db = DatabaseManager()
-    start_date_str = (date.today() - timedelta(days=30)).strftime('%d/%m/%Y')
+    start_date_str = (date.today() - timedelta(days=90)).strftime('%d/%m/%Y')
     end_date_str = date.today().strftime('%d/%m/%Y')
     
     with st.spinner("Carregando dados do dashboard..."):
@@ -215,7 +215,7 @@ def main():
     
     # Show immediate data info
     if publications:
-        st.success(f"📊 Exibindo dados dos últimos 30 dias • {len(publications)} publicações encontradas")
+        st.success(f"📊 Exibindo dados dos últimos 90 dias • {len(publications)} publicações encontradas")
         
         # KPI Cards Section
         st.markdown("### 📈 Indicadores Principais")
@@ -245,7 +245,7 @@ def main():
             create_process_classes_chart(publications)
     
     else:
-        st.warning("⚠️ Nenhuma publicação encontrada nos últimos 30 dias no banco de dados")
+        st.warning("⚠️ Nenhuma publicação encontrada nos últimos 90 dias no banco de dados")
         
         # Show database status
         if total_executions == 0 and total_publications == 0:
@@ -281,7 +281,40 @@ def main():
                 st.caption("Ranking das classes mais frequentes")
         
         else:
-            st.info(f"💾 Banco possui {total_executions} buscas e {total_publications} publicações, mas nenhuma nos últimos 30 dias")
+            st.info(f"💾 Banco possui {total_executions} buscas e {total_publications} publicações, mas nenhuma nos últimos 90 dias")
+            
+            # If there are publications but not in the recent range, offer to show all data
+            if total_publications > 0:
+                if st.button("📊 Mostrar Todos os Dados (Histórico Completo)", type="primary"):
+                    with st.spinner("Carregando todos os dados..."):
+                        # Get all data regardless of date
+                        all_publications, all_executions, all_analyses = get_dashboard_data(
+                            "01/01/2020", "31/12/2030", None
+                        )
+                    
+                    if all_publications:
+                        st.success(f"📊 Exibindo TODOS os dados • {len(all_publications)} publicações encontradas")
+                        
+                        # KPI Cards Section
+                        st.markdown("### 📈 Indicadores Principais (Histórico Completo)")
+                        create_kpi_cards(all_publications, all_executions, all_analyses)
+                        
+                        st.markdown("---")
+                        
+                        # Charts Grid
+                        st.markdown("### 📊 Análises Visuais (Todos os Dados)")
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
+                            create_publications_timeline_chart(all_publications)
+                        with col2:
+                            create_tribunals_chart(all_publications)
+                        
+                        col3, col4 = st.columns(2)
+                        with col3:
+                            create_communication_types_pie(all_publications)
+                        with col4:
+                            create_process_classes_chart(all_publications)
     
     # Collapsible Filters Section
     st.markdown("---")
